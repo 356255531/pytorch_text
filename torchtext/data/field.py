@@ -146,7 +146,7 @@ class Field(RawField):
                  tokenize=None, tokenizer_language='en', include_lengths=False,
                  batch_first=False, pad_token="<pad>", unk_token="<unk>",
                  pad_first=False, truncate_first=False, stop_words=None,
-                 is_target=False, is_logic=False):
+                 is_target=False, rules=None):
         self.sequential = sequential
         self.use_vocab = use_vocab
         self.init_token = init_token
@@ -171,7 +171,7 @@ class Field(RawField):
         except TypeError:
             raise ValueError("Stop words must be convertible to a set")
         self.is_target = is_target
-        self.is_logic = is_logic
+        self.rules = rules
 
     def __getstate__(self):
         str_type = dtype_to_attr(self.dtype)
@@ -223,6 +223,14 @@ class Field(RawField):
         else:
             return x
 
+    def map(self, minibatch, func):
+        if self.include_lengths:
+            minibatch = minibatch[0]
+        if self.sequential:
+            return [func(x) for x in minibatch]
+        else:
+            return func(minibatch)
+
     def process(self, batch, device=None):
         """ Process a list of examples to create a torch.Tensor.
 
@@ -235,8 +243,23 @@ class Field(RawField):
             and custom postprocessing Pipeline.
         """
         padded = self.pad(batch)
-        tensor = self.numericalize(padded, device=device)
-        return tensor
+        tensor_full = self.numericalize(padded, device=device)
+        if self.rules is not None:
+            rule_names = []
+            if_rules = []
+            rule_tensors = []
+            for (rule_name, if_rule_func, rule_preprocess) in self.rules:
+                import pdb
+                pdb.set_trace()
+                rule_names.append(rule_name)
+                if_rules.append(self.map(padded, if_rule_func))
+                rule_padded = self.pad(self.map(padded, rule_preprocess))
+                rule_tensors.append(self.numericalize(rule_padded))
+            tensors = [tensor_full, tuple(rule_names), tuple(if_rules), tuple(rule_tensors)]
+        else:
+            tensors = [tensor_full]
+
+        return tensors
 
     def pad(self, minibatch):
         """Pad a batch of examples using this field.
@@ -334,19 +357,9 @@ class Field(RawField):
 
         if self.use_vocab:
             if self.sequential:
-                if self.is_logic:
-                    buts = [[1] if 'but' in ex else [0] for ex in arr]
                 arr = [[self.vocab.stoi[x] for x in ex] for ex in arr]
-                if self.is_logic:
-                    arr = [a + b for a, b in zip(buts, arr)]
             else:
-                if self.is_logic and 'but' in arr:
-                    but = 1
-                else:
-                    but = 0
                 arr = [self.vocab.stoi[x] for x in arr]
-                if self.is_logic:
-                    arr = [but] + arr
 
             if self.postprocessing is not None:
                 arr = self.postprocessing(arr, self.vocab)

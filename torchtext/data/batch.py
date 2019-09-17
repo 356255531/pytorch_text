@@ -31,7 +31,15 @@ class Batch(object):
             for (name, field) in dataset.fields.items():
                 if field is not None:
                     batch = [getattr(x, name) for x in data]
-                    setattr(self, name, field.process(batch, device=device))
+
+                    if field.rules is not None:
+                        tensor_full, rule_names, if_rules, rule_tensor = field.process(batch, device=device)
+                        setattr(self, name, tensor_full)
+                        for (rule_name, if_rule, rule_tensor) in zip(rule_names, if_rules, rule_tensor):
+                            setattr(self, 'if_' + rule_name, if_rule)
+                            setattr(self, rule_name + '_' + name, rule_tensor)
+                    else:
+                        setattr(self, name, field.process(batch, device=device)[0])
 
     @classmethod
     def fromvars(cls, dataset, batch_size, train=None, **kwargs):
