@@ -223,14 +223,6 @@ class Field(RawField):
         else:
             return x
 
-    def map(self, minibatch, func):
-        if self.include_lengths:
-            minibatch = minibatch[0]
-        if self.sequential:
-            return [func(x) for x in minibatch]
-        else:
-            return func(minibatch)
-
     def process(self, batch, device=None):
         """ Process a list of examples to create a torch.Tensor.
 
@@ -244,22 +236,22 @@ class Field(RawField):
         """
         padded = self.pad(batch)
         tensor_full = self.numericalize(padded, device=device)
-        if self.rules is not None:
-            rule_names = []
-            if_rules = []
-            rule_tensors = []
-            for (rule_name, if_rule_func, rule_preprocess) in self.rules:
-                import pdb
-                pdb.set_trace()
-                rule_names.append(rule_name)
-                if_rules.append(self.map(padded, if_rule_func))
-                rule_padded = self.pad(self.map(padded, rule_preprocess))
-                rule_tensors.append(self.numericalize(rule_padded))
-            tensors = [tensor_full, tuple(rule_names), tuple(if_rules), tuple(rule_tensors)]
+        if self.rules is None:
+            return tensor_full
         else:
-            tensors = [tensor_full]
-
-        return tensors
+            rule_names = []
+            if_rule_tensors = []
+            rule_tensors = []
+            for (rule_name, if_rule_func, rule_preprocessing) in self.rules:
+                rule_names.append(rule_name)
+                if isinstance(padded, tuple):
+                    arr, original_length = padded
+                    if_rule_tensors.append(if_rule_func(arr, self.sequential, self.dtype, device))
+                else:
+                    if_rule_tensors.append(if_rule_func(padded, self.sequential, self.dtype, device))
+                rule_padded = self.pad(rule_preprocessing(padded))
+                rule_tensors.append(self.numericalize(rule_padded))
+            return tensor_full, rule_names, if_rule_tensors, rule_tensors
 
     def pad(self, minibatch):
         """Pad a batch of examples using this field.

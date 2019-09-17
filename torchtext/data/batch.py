@@ -33,13 +33,13 @@ class Batch(object):
                     batch = [getattr(x, name) for x in data]
 
                     if field.rules is not None:
-                        tensor_full, rule_names, if_rules, rule_tensor = field.process(batch, device=device)
+                        tensor_full, rule_names, if_rule_tensors, rule_tensors = field.process(batch, device=device)
                         setattr(self, name, tensor_full)
-                        for (rule_name, if_rule, rule_tensor) in zip(rule_names, if_rules, rule_tensor):
-                            setattr(self, 'if_' + rule_name, if_rule)
+                        for (rule_name, if_rule_tensor, rule_tensor) in zip(rule_names, if_rule_tensors, rule_tensors):
+                            setattr(self, 'if_' + rule_name, if_rule_tensor)
                             setattr(self, rule_name + '_' + name, rule_tensor)
                     else:
-                        setattr(self, name, field.process(batch, device=device)[0])
+                        setattr(self, name, field.process(batch, device=device))
 
     @classmethod
     def fromvars(cls, dataset, batch_size, train=None, **kwargs):
