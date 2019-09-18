@@ -255,7 +255,7 @@ class Field(RawField):
                 if_rule_tensors.append(if_rule_tensor)
 
                 rule_padded = self.pad(rule_preprocessing(padded))
-                rule_tensors.append(self.numericalize(rule_padded))
+                rule_tensors.append(self.numericalize(rule_padded, device=device))
             return tensor_full, rule_names, if_rule_tensors, rule_tensors
 
     def pad(self, minibatch):
