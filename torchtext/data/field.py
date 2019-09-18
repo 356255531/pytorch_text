@@ -244,11 +244,16 @@ class Field(RawField):
             rule_tensors = []
             for (rule_name, if_rule_func, rule_preprocessing) in self.rules:
                 rule_names.append(rule_name)
+
                 if isinstance(padded, tuple):
                     arr, original_length = padded
-                    if_rule_tensors.append(if_rule_func(arr, self.sequential, self.dtype, device))
                 else:
-                    if_rule_tensors.append(if_rule_func(padded, self.sequential, self.dtype, device))
+                    arr = padded
+                if_rule_tensor = if_rule_func(arr, self.sequential, self.dtype, device)
+                if self.sequential and not self.batch_first:
+                    if_rule_tensor.t_()
+                if_rule_tensors.append(if_rule_tensors)
+
                 rule_padded = self.pad(rule_preprocessing(padded))
                 rule_tensors.append(self.numericalize(rule_padded))
             return tensor_full, rule_names, if_rule_tensors, rule_tensors
