@@ -252,7 +252,7 @@ class Field(RawField):
                 if_rule_tensor = if_rule_func(arr, self.sequential, self.dtype, device)
                 if self.sequential and not self.batch_first:
                     if_rule_tensor.t_()
-                if_rule_tensors.append(if_rule_tensors)
+                if_rule_tensors.append(if_rule_tensor)
 
                 rule_padded = self.pad(rule_preprocessing(padded))
                 rule_tensors.append(self.numericalize(rule_padded))
